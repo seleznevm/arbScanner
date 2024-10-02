@@ -1,0 +1,4 @@
+C:/dev/08_homework/build/CMakeFiles/topk_words.dir
+C:/dev/08_homework/build/CMakeFiles/RUN_TESTS.dir
+C:/dev/08_homework/build/CMakeFiles/ALL_BUILD.dir
+C:/dev/08_homework/build/CMakeFiles/ZERO_CHECK.dir
