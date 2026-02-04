@@ -1,4 +1,0 @@
-C:/dev/08_homework/out/build/x64-Debug/CMakeFiles/topk_words.dir
-C:/dev/08_homework/out/build/x64-Debug/CMakeFiles/test.dir
-C:/dev/08_homework/out/build/x64-Debug/CMakeFiles/edit_cache.dir
-C:/dev/08_homework/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir

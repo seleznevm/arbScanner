@@ -1,8 +1,0 @@
-{
-    "cmake.generator": "Ninja",
-    "cmake.cmakePath": "C:/Program Files/CMake/bin/cmake.exe",
-    "cmake.configureOnOpen": true,
-    "C_Cpp.default.compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.30.30709/bin/Hostx64/x64/cl.exe",
-    "C_Cpp.default.intelliSenseMode": "msvc-x64",
-    "C_Cpp.default.cppStandard": "c++17"
-}
