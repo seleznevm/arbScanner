@@ -83,7 +83,10 @@ class Settings:
     redis_url: str | None = None
     redis_channel: str = "opportunities_feed"
     run_scanner_in_api: bool = True
+    connector_mode: str = "real"
     connector_interval_ms: int = 350
+    real_orderbook_depth: int = 20
+    real_connector_timeout_ms: int = 10000
     mock_exchange_bias_step: float = 0.0045
     exchanges: list[str] = field(default_factory=lambda: DEFAULT_EXCHANGES.copy())
     symbols: list[str] = field(default_factory=lambda: DEFAULT_SYMBOLS.copy())
@@ -111,7 +114,12 @@ class Settings:
             redis_channel=os.getenv("REDIS_CHANNEL", "opportunities_feed"),
             run_scanner_in_api=os.getenv("RUN_SCANNER_IN_API", "true").lower()
             in {"1", "true", "yes", "on"},
+            connector_mode=os.getenv("CONNECTOR_MODE", "real").lower(),
             connector_interval_ms=int(os.getenv("CONNECTOR_INTERVAL_MS", "350")),
+            real_orderbook_depth=int(os.getenv("REAL_ORDERBOOK_DEPTH", "20")),
+            real_connector_timeout_ms=int(
+                os.getenv("REAL_CONNECTOR_TIMEOUT_MS", "10000")
+            ),
             mock_exchange_bias_step=float(
                 os.getenv("MOCK_EXCHANGE_BIAS_STEP", "0.0045")
             ),

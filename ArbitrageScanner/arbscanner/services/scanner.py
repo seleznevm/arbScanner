@@ -7,7 +7,7 @@ import time
 
 from arbscanner.config import Settings
 from arbscanner.connectors.base import BaseConnector
-from arbscanner.connectors.factory import build_mock_connectors
+from arbscanner.connectors.factory import build_connectors
 from arbscanner.services.broker import BaseOpportunityBroker
 from arbscanner.services.engine import (
     detect_spatial_opportunities,
@@ -58,12 +58,7 @@ class ScannerRuntime:
         self.store = MarketDataStore()
         self.available_exchanges = sorted(set(settings.exchanges))
         self.available_symbols = sorted(set(settings.symbol_universe))
-        self.connectors = connectors or build_mock_connectors(
-            exchanges=settings.exchanges,
-            symbols=settings.symbol_universe,
-            interval_ms=settings.connector_interval_ms,
-            bias_step=settings.mock_exchange_bias_step,
-        )
+        self.connectors = connectors or build_connectors(settings)
         self.preferences = RuntimePreferences(
             active_exchanges=set(settings.exchanges),
             active_symbols=set(settings.symbols),

@@ -83,6 +83,7 @@ def create_app() -> FastAPI:
             "scan_interval_sec": runtime["scan_interval_sec"],
             "min_spread_diff_pct": runtime["min_spread_diff_pct"],
             "broker_mode": "redis" if settings.use_redis else "inmemory",
+            "connector_mode": settings.connector_mode,
             "run_scanner_in_api": settings.run_scanner_in_api,
             "symbols": runtime["active_symbols"],
             "exchanges": len(runtime["active_exchanges"]),
