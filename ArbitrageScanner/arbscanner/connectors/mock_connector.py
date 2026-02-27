@@ -42,6 +42,16 @@ class MockConnector(BaseConnector):
                 await store.upsert(snapshot)
             await asyncio.sleep(self.interval_ms / 1000.0)
 
+    def get_status(self) -> dict[str, object]:
+        status = super().get_status()
+        status.update(
+            {
+                "mode": "mock",
+                "exchange_bias": self.exchange_bias,
+            }
+        )
+        return status
+
     def _next_snapshot(self, symbol: str, now: float) -> OrderBookSnapshot:
         self._seq += 1
         mid = self._mid[symbol]
@@ -75,4 +85,3 @@ class MockConnector(BaseConnector):
                 "source": "mock",
             },
         )
-

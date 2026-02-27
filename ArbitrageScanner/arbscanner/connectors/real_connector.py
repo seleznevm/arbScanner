@@ -32,6 +32,7 @@ class CCXTOrderBookConnector(BaseConnector):
         self.timeout_ms = timeout_ms
         self._client: Any | None = None
         self._symbol_map: dict[str, str] = {}
+        self._symbol_key: tuple[str, ...] = tuple()
         self._ccxt_module: Any | None = None
         self._initialized = False
 
@@ -39,6 +40,7 @@ class CCXTOrderBookConnector(BaseConnector):
         while not stop_event.is_set():
             try:
                 await self._ensure_initialized()
+                self._refresh_symbol_map()
                 if not self._symbol_map:
                     await asyncio.sleep(5.0)
                     continue
@@ -59,6 +61,18 @@ class CCXTOrderBookConnector(BaseConnector):
 
         await self._reset_client()
 
+    def get_status(self) -> dict[str, object]:
+        status = super().get_status()
+        status.update(
+            {
+                "mode": "real",
+                "initialized": self._initialized,
+                "mapped_symbols": len(self._symbol_map),
+                "requested_symbols": len(self.symbols),
+            }
+        )
+        return status
+
     async def _ensure_initialized(self) -> None:
         if self._initialized and self._client is not None:
             return
@@ -77,11 +91,27 @@ class CCXTOrderBookConnector(BaseConnector):
             }
         )
         await self._client.load_markets()
-        self._symbol_map = self._build_symbol_map(self.symbols, self._client.symbols)
+        self._symbol_map = {}
+        self._symbol_key = tuple()
+        self._refresh_symbol_map()
         self._initialized = True
 
         LOGGER.info(
             "Real connector initialized: %s (%s symbols mapped)",
+            self.exchange,
+            len(self._symbol_map),
+        )
+
+    def _refresh_symbol_map(self) -> None:
+        if self._client is None:
+            return
+        key = tuple(sorted(set(self.symbols)))
+        if key == self._symbol_key:
+            return
+        self._symbol_map = self._build_symbol_map(list(key), self._client.symbols)
+        self._symbol_key = key
+        LOGGER.info(
+            "Connector %s symbols refreshed: %s mapped",
             self.exchange,
             len(self._symbol_map),
         )
@@ -208,4 +238,4 @@ class CCXTOrderBookConnector(BaseConnector):
         self._client = None
         self._initialized = False
         self._symbol_map = {}
-
+        self._symbol_key = tuple()

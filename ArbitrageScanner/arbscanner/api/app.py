@@ -78,6 +78,12 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, object]:
         runtime = app.state.runtime_settings
+        counters: dict[str, object] = {
+            "opportunities_in_feed": len(broker.get_latest()),
+        }
+        if scanner:
+            status = await scanner.get_status_snapshot()
+            counters = dict(status.get("counters", {}))
         return {
             "ok": True,
             "scan_interval_sec": runtime["scan_interval_sec"],
@@ -87,6 +93,35 @@ def create_app() -> FastAPI:
             "run_scanner_in_api": settings.run_scanner_in_api,
             "symbols": runtime["active_symbols"],
             "exchanges": len(runtime["active_exchanges"]),
+            "counters": counters,
+        }
+
+    @app.get("/api/status")
+    async def get_status() -> dict[str, object]:
+        if scanner:
+            status = await scanner.get_status_snapshot()
+            status["feed_size"] = len(broker.get_latest())
+            return status
+        return {
+            "started": False,
+            "connector_mode": settings.connector_mode,
+            "scan_interval_sec": app.state.runtime_settings["scan_interval_sec"],
+            "stale_after_sec": settings.stale_after_sec,
+            "active_exchanges": app.state.runtime_settings["active_exchanges"],
+            "active_symbols": app.state.runtime_settings["active_symbols"],
+            "counters": {
+                "connectors_total": 0,
+                "symbols_active_count": len(app.state.runtime_settings["active_symbols"]),
+                "books_total": 0,
+                "books_fresh": 0,
+                "books_stale": 0,
+                "opportunities_last_scan": len(broker.get_latest()),
+                "scan_iterations": 0,
+                "last_scan_elapsed_ms": None,
+                "last_scan_age_ms": None,
+            },
+            "exchanges": [],
+            "feed_size": len(broker.get_latest()),
         }
 
     @app.get("/api/settings")

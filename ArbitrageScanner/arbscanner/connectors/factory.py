@@ -48,18 +48,19 @@ def build_real_connectors(
     ]
 
 
-def build_connectors(settings: Settings) -> list[BaseConnector]:
+def build_connectors(settings: Settings, symbols: list[str] | None = None) -> list[BaseConnector]:
     mode = settings.connector_mode.lower()
+    symbol_set = symbols if symbols is not None else settings.symbol_universe
     if mode == "mock":
         return build_mock_connectors(
             exchanges=settings.exchanges,
-            symbols=settings.symbol_universe,
+            symbols=symbol_set,
             interval_ms=settings.connector_interval_ms,
             bias_step=settings.mock_exchange_bias_step,
         )
     return build_real_connectors(
         exchanges=settings.exchanges,
-        symbols=settings.symbol_universe,
+        symbols=symbol_set,
         interval_ms=settings.connector_interval_ms,
         depth=settings.real_orderbook_depth,
         timeout_ms=settings.real_connector_timeout_ms,

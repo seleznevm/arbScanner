@@ -58,7 +58,12 @@ class ScannerRuntime:
         self.store = MarketDataStore()
         self.available_exchanges = sorted(set(settings.exchanges))
         self.available_symbols = sorted(set(settings.symbol_universe))
-        self.connectors = connectors or build_connectors(settings)
+        initial_symbols = (
+            settings.symbols
+            if settings.connector_mode.lower() == "real"
+            else settings.symbol_universe
+        )
+        self.connectors = connectors or build_connectors(settings, symbols=initial_symbols)
         self.preferences = RuntimePreferences(
             active_exchanges=set(settings.exchanges),
             active_symbols=set(settings.symbols),
@@ -71,6 +76,10 @@ class ScannerRuntime:
         self._stop_event = asyncio.Event()
         self._started = False
         self.latest_scan_count = 0
+        self.scan_iterations = 0
+        self.last_scan_started_at = 0.0
+        self.last_scan_finished_at = 0.0
+        self.last_scan_elapsed_ms = 0.0
 
     async def start(self) -> None:
         if self._started:
@@ -108,7 +117,82 @@ class ScannerRuntime:
                 available_symbols=self.available_symbols,
             )
 
+    async def get_status_snapshot(self) -> dict[str, object]:
+        now = time.time()
+        prefs = await self._snapshot_preferences()
+        market = await self.store.get_market_snapshot()
+
+        per_exchange: dict[str, dict[str, object]] = {
+            exchange: {
+                "exchange": exchange,
+                "books_total": 0,
+                "books_fresh": 0,
+                "books_stale": 0,
+                "newest_age_ms": None,
+            }
+            for exchange in self.available_exchanges
+        }
+
+        for symbol_books in market.values():
+            for exchange, snapshot in symbol_books.items():
+                entry = per_exchange.setdefault(
+                    exchange,
+                    {
+                        "exchange": exchange,
+                        "books_total": 0,
+                        "books_fresh": 0,
+                        "books_stale": 0,
+                        "newest_age_ms": None,
+                    },
+                )
+                age_ms = max(0.0, (now - snapshot.ts_ingest) * 1000.0)
+                entry["books_total"] = int(entry["books_total"]) + 1
+                if age_ms <= self.settings.stale_after_sec * 1000.0:
+                    entry["books_fresh"] = int(entry["books_fresh"]) + 1
+                else:
+                    entry["books_stale"] = int(entry["books_stale"]) + 1
+                prev_age = entry["newest_age_ms"]
+                if prev_age is None or age_ms < float(prev_age):
+                    entry["newest_age_ms"] = round(age_ms, 1)
+
+        connector_status = {item.exchange: item.get_status() for item in self.connectors}
+        exchange_rows: list[dict[str, object]] = []
+        for exchange in sorted(per_exchange.keys()):
+            row = dict(per_exchange[exchange])
+            row.update(connector_status.get(exchange, {}))
+            exchange_rows.append(row)
+
+        books_total = sum(int(row["books_total"]) for row in exchange_rows)
+        books_fresh = sum(int(row["books_fresh"]) for row in exchange_rows)
+        books_stale = sum(int(row["books_stale"]) for row in exchange_rows)
+
+        return {
+            "started": self._started,
+            "connector_mode": self.settings.connector_mode,
+            "scan_interval_sec": prefs.scan_interval_sec,
+            "stale_after_sec": self.settings.stale_after_sec,
+            "active_exchanges": sorted(prefs.active_exchanges),
+            "active_symbols": sorted(prefs.active_symbols),
+            "counters": {
+                "connectors_total": len(self.connectors),
+                "symbols_active_count": len(prefs.active_symbols),
+                "books_total": books_total,
+                "books_fresh": books_fresh,
+                "books_stale": books_stale,
+                "opportunities_last_scan": self.latest_scan_count,
+                "scan_iterations": self.scan_iterations,
+                "last_scan_elapsed_ms": round(self.last_scan_elapsed_ms, 2),
+                "last_scan_age_ms": round(
+                    max(0.0, (now - self.last_scan_finished_at) * 1000.0), 1
+                )
+                if self.last_scan_finished_at
+                else None,
+            },
+            "exchanges": exchange_rows,
+        }
+
     async def update_runtime_settings(self, payload: dict[str, object]) -> dict[str, object]:
+        updated_symbols = False
         async with self._prefs_lock:
             exchanges = payload.get("active_exchanges")
             if exchanges is not None:
@@ -123,6 +207,7 @@ class ScannerRuntime:
                     item for item in requested_symbols if item in self.available_symbols
                 }
                 self.preferences.active_symbols = valid_symbols
+                updated_symbols = True
 
             scan_interval = payload.get("scan_interval_sec")
             if scan_interval is not None:
@@ -142,10 +227,19 @@ class ScannerRuntime:
                 if value >= 0:
                     self.preferences.min_spread_diff_pct = value
 
-            return self.preferences.to_dict(
+            data = self.preferences.to_dict(
                 available_exchanges=self.available_exchanges,
                 available_symbols=self.available_symbols,
             )
+        if updated_symbols:
+            await self._sync_connector_symbols()
+        return data
+
+    async def _sync_connector_symbols(self) -> None:
+        async with self._prefs_lock:
+            symbols = sorted(self.preferences.active_symbols)
+        for connector in self.connectors:
+            connector.set_symbols(symbols)
 
     async def _snapshot_preferences(self) -> RuntimePreferences:
         async with self._prefs_lock:
@@ -160,6 +254,7 @@ class ScannerRuntime:
     async def _scan_loop(self) -> None:
         while not self._stop_event.is_set():
             start_ts = time.time()
+            self.last_scan_started_at = start_ts
             snapshot = await self.store.get_market_snapshot()
             prefs = await self._snapshot_preferences()
             opportunities = []
@@ -194,5 +289,8 @@ class ScannerRuntime:
             await self.broker.publish(opportunities)
 
             elapsed = time.time() - start_ts
+            self.last_scan_elapsed_ms = elapsed * 1000.0
+            self.last_scan_finished_at = time.time()
+            self.scan_iterations += 1
             sleep_for = max(0.05, prefs.scan_interval_sec - elapsed)
             await asyncio.sleep(sleep_for)

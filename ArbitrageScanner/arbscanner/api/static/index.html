@@ -162,6 +162,35 @@
         overflow: hidden;
       }
 
+      .tabbar {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+        border-bottom: 1px solid rgba(90, 174, 196, 0.16);
+      }
+
+      .tabbtn {
+        border: 1px solid var(--line);
+        background: rgba(10, 44, 58, 0.7);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-weight: 600;
+      }
+
+      .tabbtn.active {
+        color: var(--text);
+        background: rgba(16, 74, 92, 0.85);
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
       .toolbar {
         display: grid;
         grid-template-columns: 1fr 180px 180px;
@@ -195,6 +224,10 @@
         font-weight: 700;
       }
 
+      .status-wrap {
+        padding: 12px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -224,6 +257,8 @@
       .risk-green { color: var(--ok); }
       .risk-yellow { color: var(--warn); }
       .risk-red { color: var(--danger); }
+      .ok { color: var(--ok); }
+      .bad { color: var(--danger); }
 
       .mono {
         font-family: "IBM Plex Mono", Consolas, monospace;
@@ -296,45 +331,77 @@
         </div>
 
         <div class="card content">
-          <div class="toolbar">
-            <div>
-              <label class="small" for="symbolFilter">Filter by symbol</label>
-              <input id="symbolFilter" type="text" placeholder="e.g. BTC, ETH-USDT, SOL" />
-            </div>
-            <div>
-              <label class="small">Sort</label>
-              <div class="mono" id="sortLabel">net_edge_pct desc</div>
-            </div>
-            <div>
-              <label class="small">Rows</label>
-              <div class="mono" id="rowLabel">0</div>
-            </div>
+          <div class="tabbar">
+            <button class="tabbtn active" id="tabOpps" type="button">Opportunities</button>
+            <button class="tabbtn" id="tabStatus" type="button">Status</button>
           </div>
 
-          <div class="stats">
-            <div class="stat"><div class="k">Top Net Edge</div><div class="v" id="sTop">0.000%</div></div>
-            <div class="stat"><div class="k">Avg Net Edge</div><div class="v" id="sAvg">0.000%</div></div>
-            <div class="stat"><div class="k">Projected PnL (Top 10)</div><div class="v" id="sPnl">0.00</div></div>
-            <div class="stat"><div class="k">Active Symbols</div><div class="v" id="sSym">0</div></div>
+          <div class="panel active" id="oppsPanel">
+            <div class="toolbar">
+              <div>
+                <label class="small" for="symbolFilter">Filter by symbol</label>
+                <input id="symbolFilter" type="text" placeholder="e.g. BTC, ETH-USDT, SOL" />
+              </div>
+              <div>
+                <label class="small">Sort</label>
+                <div class="mono" id="sortLabel">net_edge_pct desc</div>
+              </div>
+              <div>
+                <label class="small">Rows</label>
+                <div class="mono" id="rowLabel">0</div>
+              </div>
+            </div>
+
+            <div class="stats">
+              <div class="stat"><div class="k">Top Net Edge</div><div class="v" id="sTop">0.000%</div></div>
+              <div class="stat"><div class="k">Avg Net Edge</div><div class="v" id="sAvg">0.000%</div></div>
+              <div class="stat"><div class="k">Projected PnL (Top 10)</div><div class="v" id="sPnl">0.00</div></div>
+              <div class="stat"><div class="k">Active Symbols</div><div class="v" id="sSym">0</div></div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th data-key="symbol" data-label="Symbol">Symbol</th>
+                  <th data-key="buy_exchange" data-label="Buy">Buy</th>
+                  <th data-key="sell_exchange" data-label="Sell">Sell</th>
+                  <th data-key="buy_vwap" data-label="Buy price">Buy price</th>
+                  <th data-key="sell_vwap" data-label="Sell price">Sell price</th>
+                  <th data-key="net_edge_pct" data-label="Net Edge">Net Edge</th>
+                  <th data-key="gross_edge_pct" data-label="Gross Edge">Gross Edge</th>
+                  <th data-key="available_qty" data-label="Qty">Qty</th>
+                  <th data-key="expected_profit_usdt" data-label="Profit USDT">Profit USDT</th>
+                  <th data-key="risk_flag" data-label="Risk">Risk</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th data-key="symbol" data-label="Symbol">Symbol</th>
-                <th data-key="buy_exchange" data-label="Buy">Buy</th>
-                <th data-key="sell_exchange" data-label="Sell">Sell</th>
-                <th data-key="buy_vwap" data-label="Buy price">Buy price</th>
-                <th data-key="sell_vwap" data-label="Sell price">Sell price</th>
-                <th data-key="net_edge_pct" data-label="Net Edge">Net Edge</th>
-                <th data-key="gross_edge_pct" data-label="Gross Edge">Gross Edge</th>
-                <th data-key="available_qty" data-label="Qty">Qty</th>
-                <th data-key="expected_profit_usdt" data-label="Profit USDT">Profit USDT</th>
-                <th data-key="risk_flag" data-label="Risk">Risk</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
+          <div class="panel" id="statusPanel">
+            <div class="status-wrap">
+              <div class="stats">
+                <div class="stat"><div class="k">Connectors</div><div class="v" id="stConnectors">0</div></div>
+                <div class="stat"><div class="k">Books</div><div class="v" id="stBooks">0</div></div>
+                <div class="stat"><div class="k">Fresh Ratio</div><div class="v" id="stFreshRatio">0%</div></div>
+                <div class="stat"><div class="k">Last Scan</div><div class="v" id="stLastScan">-</div></div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Exchange</th>
+                    <th>Connector</th>
+                    <th>Mapped/Requested</th>
+                    <th>Books</th>
+                    <th>Fresh</th>
+                    <th>Stale</th>
+                    <th>Newest Age (ms)</th>
+                  </tr>
+                </thead>
+                <tbody id="statusTbody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -358,9 +425,22 @@
       const minSpreadDiffEl = document.getElementById("minSpreadDiff");
       const exchangesEl = document.getElementById("exchanges");
       const symbolsEl = document.getElementById("symbols");
+      const statusTbody = document.getElementById("statusTbody");
+      const tabOpps = document.getElementById("tabOpps");
+      const tabStatus = document.getElementById("tabStatus");
+      const oppsPanel = document.getElementById("oppsPanel");
+      const statusPanel = document.getElementById("statusPanel");
 
       function setMeta(text) {
         meta.textContent = text;
+      }
+
+      function switchTab(name) {
+        const isOpps = name === "opps";
+        tabOpps.classList.toggle("active", isOpps);
+        tabStatus.classList.toggle("active", !isOpps);
+        oppsPanel.classList.toggle("active", isOpps);
+        statusPanel.classList.toggle("active", !isOpps);
       }
 
       async function loadSettings() {
@@ -424,7 +504,51 @@
         const data = await res.json();
         state.settings = data;
         hydrateSettingsUI(data);
+        await loadStatus();
         setMeta(`Settings saved at ${new Date().toLocaleTimeString()}`);
+      }
+
+      async function loadStatus() {
+        try {
+          const res = await fetch("/api/status");
+          const data = await res.json();
+          renderStatus(data);
+        } catch (err) {
+          setMeta("Status fetch error");
+        }
+      }
+
+      function renderStatus(data) {
+        const counters = data.counters || {};
+        const booksTotal = Number(counters.books_total || 0);
+        const booksFresh = Number(counters.books_fresh || 0);
+        const freshRatio = booksTotal > 0 ? (booksFresh / booksTotal) * 100 : 0;
+
+        document.getElementById("stConnectors").textContent = String(counters.connectors_total || 0);
+        document.getElementById("stBooks").textContent = String(booksTotal);
+        document.getElementById("stFreshRatio").textContent = `${freshRatio.toFixed(1)}%`;
+        document.getElementById("stLastScan").textContent = counters.last_scan_elapsed_ms != null
+          ? `${Number(counters.last_scan_elapsed_ms).toFixed(1)} ms`
+          : "-";
+
+        statusTbody.innerHTML = "";
+        (data.exchanges || []).forEach((row) => {
+          const fresh = Number(row.books_fresh || 0);
+          const total = Number(row.books_total || 0);
+          const mapped = Number(row.mapped_symbols ?? 0);
+          const requested = Number(row.requested_symbols ?? 0);
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.exchange || ""}</td>
+            <td>${row.connector || ""}</td>
+            <td>${mapped}/${requested}</td>
+            <td>${total}</td>
+            <td class="${fresh > 0 ? "ok" : ""}">${fresh}</td>
+            <td class="${Number(row.books_stale || 0) > 0 ? "bad" : ""}">${row.books_stale || 0}</td>
+            <td>${row.newest_age_ms ?? "-"}</td>
+          `;
+          statusTbody.appendChild(tr);
+        });
       }
 
       function formatInterval(sec) {
@@ -531,6 +655,8 @@
         });
 
         document.getElementById("saveSettings").addEventListener("click", saveSettings);
+        tabOpps.addEventListener("click", () => switchTab("opps"));
+        tabStatus.addEventListener("click", () => switchTab("status"));
         document.getElementById("exAll").addEventListener("click", () => {
           exchangesEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = true);
         });
@@ -562,6 +688,8 @@
       async function boot() {
         wireInteractions();
         await loadSettings();
+        await loadStatus();
+        setInterval(loadStatus, 5000);
         updateSortHeaderStyles();
         render();
         connectWs();
