@@ -2,8 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: arb_redis
-    ports:
-      - "6379:6379"
+    networks:
+      - traefik-proxy
 
   postgres:
     image: postgres:16-alpine
@@ -16,6 +16,8 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - traefik-proxy
 
   api:
     build: .
@@ -26,9 +28,22 @@ services:
       RUN_SCANNER_IN_API: "false"
     depends_on:
       - redis
+      - postgres
     ports:
       - "8000:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`arbscanner.smautomator.cloud`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api-http.rule=Host(`arbscanner.smautomator.cloud`)"
+      - "traefik.http.routers.api-http.entrypoints=web"
+      - "traefik.http.routers.api-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
     command: ["python", "ArbitrageScanner.py", "api", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - traefik-proxy
 
   worker:
     build: .
@@ -37,7 +52,14 @@ services:
       - .env.example
     depends_on:
       - redis
+      - postgres
     command: ["python", "ArbitrageScanner.py", "worker"]
+    networks:
+      - traefik-proxy
 
 volumes:
   pg_data:
+
+networks:
+  traefik-proxy:
+    external: true
