@@ -62,6 +62,7 @@ class ScannerRuntime:
             exchanges=settings.exchanges,
             symbols=settings.symbol_universe,
             interval_ms=settings.connector_interval_ms,
+            bias_step=settings.mock_exchange_bias_step,
         )
         self.preferences = RuntimePreferences(
             active_exchanges=set(settings.exchanges),

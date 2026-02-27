@@ -84,6 +84,7 @@ class Settings:
     redis_channel: str = "opportunities_feed"
     run_scanner_in_api: bool = True
     connector_interval_ms: int = 350
+    mock_exchange_bias_step: float = 0.0045
     exchanges: list[str] = field(default_factory=lambda: DEFAULT_EXCHANGES.copy())
     symbols: list[str] = field(default_factory=lambda: DEFAULT_SYMBOLS.copy())
     symbol_universe: list[str] = field(
@@ -111,6 +112,9 @@ class Settings:
             run_scanner_in_api=os.getenv("RUN_SCANNER_IN_API", "true").lower()
             in {"1", "true", "yes", "on"},
             connector_interval_ms=int(os.getenv("CONNECTOR_INTERVAL_MS", "350")),
+            mock_exchange_bias_step=float(
+                os.getenv("MOCK_EXCHANGE_BIAS_STEP", "0.0045")
+            ),
             exchanges=_csv(os.getenv("EXCHANGES"), DEFAULT_EXCHANGES.copy()),
             symbols=_csv(os.getenv("SYMBOLS"), DEFAULT_SYMBOLS.copy()),
             symbol_universe=_csv(
