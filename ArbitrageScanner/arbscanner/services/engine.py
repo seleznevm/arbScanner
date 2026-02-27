@@ -67,6 +67,7 @@ def detect_spatial_opportunities(
     settings: Settings,
     trade_notional_usdt: float | None = None,
     min_spread_diff_pct: float | None = None,
+    min_net_edge_pct: float | None = None,
     now: float | None = None,
 ) -> list[Opportunity]:
     now_ts = now or time.time()
@@ -82,6 +83,11 @@ def detect_spatial_opportunities(
         min_spread_diff_pct
         if min_spread_diff_pct is not None
         else settings.min_spread_diff_pct
+    )
+    min_net_edge = (
+        min_net_edge_pct
+        if min_net_edge_pct is not None
+        else settings.min_net_edge_pct
     )
 
     for buy_exchange in exchanges:
@@ -142,7 +148,7 @@ def detect_spatial_opportunities(
 
             net_profit = gross_profit - fees_cost - slippage_cost - withdraw_cost
             net_edge_pct = (net_profit / buy_notional) * 100.0
-            if net_edge_pct < settings.min_net_edge_pct:
+            if net_edge_pct < min_net_edge:
                 continue
 
             opportunities.append(

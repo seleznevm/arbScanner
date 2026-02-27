@@ -310,6 +310,11 @@
           </div>
 
           <div class="row">
+            <label class="small" for="minNetEdge">Min net edge (%)</label>
+            <input id="minNetEdge" type="number" step="0.1" />
+          </div>
+
+          <div class="row">
             <label class="small">Exchanges</label>
             <div class="chip-row">
               <button id="exAll" type="button">All</button>
@@ -423,6 +428,7 @@
       const scanIntervalEl = document.getElementById("scanInterval");
       const tradeNotionalEl = document.getElementById("tradeNotional");
       const minSpreadDiffEl = document.getElementById("minSpreadDiff");
+      const minNetEdgeEl = document.getElementById("minNetEdge");
       const exchangesEl = document.getElementById("exchanges");
       const symbolsEl = document.getElementById("symbols");
       const statusTbody = document.getElementById("statusTbody");
@@ -461,6 +467,7 @@
         });
         tradeNotionalEl.value = String(data.trade_notional_usdt);
         minSpreadDiffEl.value = String(data.min_spread_diff_pct);
+        minNetEdgeEl.value = String(data.min_net_edge_pct ?? 0);
 
         renderPicker(exchangesEl, data.available_exchanges, new Set(data.active_exchanges));
         renderPicker(symbolsEl, data.available_symbols, new Set(data.active_symbols));
@@ -493,6 +500,7 @@
           scan_interval_sec: Number(scanIntervalEl.value),
           trade_notional_usdt: Number(tradeNotionalEl.value),
           min_spread_diff_pct: Number(minSpreadDiffEl.value),
+          min_net_edge_pct: Number(minNetEdgeEl.value),
           active_exchanges: collectChecked(exchangesEl),
           active_symbols: collectChecked(symbolsEl),
         };
