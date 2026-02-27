@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arbitrage Scanner</title>
+    <style>
+      :root {
+        --bg-top: #041b24;
+        --bg-bottom: #02070d;
+        --card: rgba(8, 29, 39, 0.84);
+        --line: rgba(90, 174, 196, 0.26);
+        --text: #eaf7fb;
+        --muted: #89aab5;
+        --ok: #2ecc71;
+        --warn: #f1c40f;
+        --danger: #e74c3c;
+        --accent: #3cc4dd;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 20% 10%, rgba(60, 196, 221, 0.2), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 110, 74, 0.15), transparent 28%),
+          linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+      }
+
+      .shell {
+        width: min(1260px, 95vw);
+        margin: 24px auto 28px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card);
+        backdrop-filter: blur(6px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(22px, 2.5vw, 34px);
+      }
+
+      .meta {
+        margin-top: 8px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .pulse {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 8px;
+        background: var(--accent);
+        box-shadow: 0 0 0 rgba(60, 196, 221, 0.5);
+        animation: ping 1.8s infinite;
+      }
+
+      @keyframes ping {
+        0% { box-shadow: 0 0 0 0 rgba(60, 196, 221, 0.45); }
+        70% { box-shadow: 0 0 0 9px rgba(60, 196, 221, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(60, 196, 221, 0); }
+      }
+
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(5, 21, 29, 0.66);
+      }
+
+      .settings {
+        padding: 12px;
+      }
+
+      .section-title {
+        margin: 0 0 10px;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #bde9f2;
+      }
+
+      .row {
+        margin-bottom: 10px;
+      }
+
+      label.small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+
+      input[type="number"], input[type="text"], select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(5, 21, 29, 0.9);
+        color: var(--text);
+        padding: 8px 9px;
+      }
+
+      .chip-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        background: rgba(16, 74, 92, 0.5);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 7px 10px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: rgba(16, 74, 92, 0.75);
+      }
+
+      .save {
+        width: 100%;
+        font-weight: 700;
+        margin-top: 6px;
+      }
+
+      .picker {
+        max-height: 180px;
+        overflow: auto;
+        border: 1px solid rgba(90, 174, 196, 0.2);
+        border-radius: 8px;
+        padding: 8px;
+      }
+
+      .picker label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 3px 0;
+        font-size: 13px;
+      }
+
+      .content {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 180px 180px;
+        gap: 10px;
+        padding: 12px;
+        border-bottom: 1px solid rgba(90, 174, 196, 0.16);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(100px, 1fr));
+        gap: 10px;
+        padding: 12px;
+        border-bottom: 1px solid rgba(90, 174, 196, 0.16);
+      }
+
+      .stat {
+        border: 1px solid rgba(90, 174, 196, 0.2);
+        border-radius: 8px;
+        padding: 9px;
+      }
+
+      .stat .k {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .stat .v {
+        margin-top: 4px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(90, 174, 196, 0.12);
+        font-size: 14px;
+      }
+
+      th {
+        color: var(--muted);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      th.sort {
+        color: #d2f4fb;
+      }
+
+      tr:hover td {
+        background: rgba(50, 112, 126, 0.15);
+      }
+
+      .risk-green { color: var(--ok); }
+      .risk-yellow { color: var(--warn); }
+      .risk-red { color: var(--danger); }
+
+      .mono {
+        font-family: "IBM Plex Mono", Consolas, monospace;
+      }
+
+      @media (max-width: 980px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        th:nth-child(5), td:nth-child(5),
+        th:nth-child(6), td:nth-child(6) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <h1><span class="pulse"></span>Arbitrage Scanner MVP</h1>
+      <div class="meta" id="meta">Connecting...</div>
+
+      <div class="grid">
+        <div class="card settings">
+          <p class="section-title">Settings</p>
+
+          <div class="row">
+            <label class="small" for="scanInterval">Scan interval</label>
+            <select id="scanInterval"></select>
+          </div>
+
+          <div class="row">
+            <label class="small" for="tradeNotional">Trade size (USDT)</label>
+            <input id="tradeNotional" type="number" min="1" step="10" />
+          </div>
+
+          <div class="row">
+            <label class="small">Exchanges</label>
+            <div class="chip-row">
+              <button id="exAll" type="button">All</button>
+              <button id="exNone" type="button">None</button>
+            </div>
+            <div class="picker" id="exchanges"></div>
+          </div>
+
+          <div class="row">
+            <label class="small">Symbols</label>
+            <div class="chip-row">
+              <button id="symAll" type="button">All</button>
+              <button id="symNone" type="button">None</button>
+            </div>
+            <div class="picker" id="symbols"></div>
+          </div>
+
+          <button class="save" id="saveSettings" type="button">Save settings</button>
+        </div>
+
+        <div class="card content">
+          <div class="toolbar">
+            <div>
+              <label class="small" for="symbolFilter">Filter by symbol</label>
+              <input id="symbolFilter" type="text" placeholder="e.g. BTC, ETH-USDT, SOL" />
+            </div>
+            <div>
+              <label class="small">Sort</label>
+              <div class="mono" id="sortLabel">net_edge_pct desc</div>
+            </div>
+            <div>
+              <label class="small">Rows</label>
+              <div class="mono" id="rowLabel">0</div>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">Top Net Edge</div><div class="v" id="sTop">0.000%</div></div>
+            <div class="stat"><div class="k">Avg Net Edge</div><div class="v" id="sAvg">0.000%</div></div>
+            <div class="stat"><div class="k">Projected PnL (Top 10)</div><div class="v" id="sPnl">0.00</div></div>
+            <div class="stat"><div class="k">Active Symbols</div><div class="v" id="sSym">0</div></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th data-key="symbol" data-label="Symbol">Symbol</th>
+                <th data-key="buy_exchange" data-label="Buy">Buy</th>
+                <th data-key="sell_exchange" data-label="Sell">Sell</th>
+                <th data-key="net_edge_pct" data-label="Net Edge">Net Edge</th>
+                <th data-key="gross_edge_pct" data-label="Gross Edge">Gross Edge</th>
+                <th data-key="available_qty" data-label="Qty">Qty</th>
+                <th data-key="expected_profit_usdt" data-label="Profit USDT">Profit USDT</th>
+                <th data-key="risk_flag" data-label="Risk">Risk</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        rows: [],
+        sort: { key: "net_edge_pct", dir: "desc" },
+        symbolFilter: "",
+        settings: null,
+      };
+
+      const meta = document.getElementById("meta");
+      const tbody = document.getElementById("tbody");
+      const symbolFilterInput = document.getElementById("symbolFilter");
+      const sortLabel = document.getElementById("sortLabel");
+      const rowLabel = document.getElementById("rowLabel");
+
+      const scanIntervalEl = document.getElementById("scanInterval");
+      const tradeNotionalEl = document.getElementById("tradeNotional");
+      const exchangesEl = document.getElementById("exchanges");
+      const symbolsEl = document.getElementById("symbols");
+
+      function setMeta(text) {
+        meta.textContent = text;
+      }
+
+      async function loadSettings() {
+        const res = await fetch("/api/settings");
+        const data = await res.json();
+        state.settings = data;
+        hydrateSettingsUI(data);
+      }
+
+      function hydrateSettingsUI(data) {
+        scanIntervalEl.innerHTML = "";
+        data.allowed_scan_intervals_sec.forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = String(v);
+          opt.textContent = formatInterval(v);
+          if (v === data.scan_interval_sec) opt.selected = true;
+          scanIntervalEl.appendChild(opt);
+        });
+        tradeNotionalEl.value = String(data.trade_notional_usdt);
+
+        renderPicker(exchangesEl, data.available_exchanges, new Set(data.active_exchanges));
+        renderPicker(symbolsEl, data.available_symbols, new Set(data.active_symbols));
+        document.getElementById("sSym").textContent = String(data.active_symbols.length);
+      }
+
+      function renderPicker(root, values, selected) {
+        root.innerHTML = "";
+        values.forEach((value) => {
+          const id = `${root.id}_${value}`;
+          const label = document.createElement("label");
+          label.setAttribute("for", id);
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.id = id;
+          input.value = value;
+          input.checked = selected.has(value);
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(value));
+          root.appendChild(label);
+        });
+      }
+
+      function collectChecked(root) {
+        return [...root.querySelectorAll("input[type='checkbox']:checked")].map((x) => x.value);
+      }
+
+      async function saveSettings() {
+        const payload = {
+          scan_interval_sec: Number(scanIntervalEl.value),
+          trade_notional_usdt: Number(tradeNotionalEl.value),
+          active_exchanges: collectChecked(exchangesEl),
+          active_symbols: collectChecked(symbolsEl),
+        };
+        const res = await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        state.settings = data;
+        hydrateSettingsUI(data);
+        setMeta(`Settings saved at ${new Date().toLocaleTimeString()}`);
+      }
+
+      function formatInterval(sec) {
+        if (sec < 60) return `${sec} sec`;
+        if (sec % 60 === 0) return `${sec / 60} min`;
+        return `${sec}s`;
+      }
+
+      function parseSortValue(row, key) {
+        const v = row[key];
+        if (["net_edge_pct", "gross_edge_pct", "available_qty", "expected_profit_usdt"].includes(key)) {
+          return Number(v || 0);
+        }
+        return String(v || "").toLowerCase();
+      }
+
+      function applyFilterSort(rows) {
+        let out = rows.slice();
+        if (state.symbolFilter) {
+          const needle = state.symbolFilter.toLowerCase();
+          out = out.filter((r) => String(r.symbol || "").toLowerCase().includes(needle));
+        }
+        out.sort((a, b) => {
+          const av = parseSortValue(a, state.sort.key);
+          const bv = parseSortValue(b, state.sort.key);
+          if (av < bv) return state.sort.dir === "asc" ? -1 : 1;
+          if (av > bv) return state.sort.dir === "asc" ? 1 : -1;
+          return 0;
+        });
+        return out;
+      }
+
+      function updateStats(rows) {
+        const top = rows[0]?.net_edge_pct || 0;
+        const avg = rows.length ? rows.reduce((s, r) => s + Number(r.net_edge_pct || 0), 0) / rows.length : 0;
+        const pnl = rows.slice(0, 10).reduce((s, r) => s + Number(r.expected_profit_usdt || 0), 0);
+        document.getElementById("sTop").textContent = `${Number(top).toFixed(3)}%`;
+        document.getElementById("sAvg").textContent = `${Number(avg).toFixed(3)}%`;
+        document.getElementById("sPnl").textContent = Number(pnl).toFixed(2);
+      }
+
+      function render() {
+        const rows = applyFilterSort(state.rows);
+        tbody.innerHTML = "";
+        rows.slice(0, 150).forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.symbol}</td>
+            <td>${row.buy_exchange}</td>
+            <td>${row.sell_exchange}</td>
+            <td>${Number(row.net_edge_pct).toFixed(3)}%</td>
+            <td>${Number(row.gross_edge_pct).toFixed(3)}%</td>
+            <td>${Number(row.available_qty).toFixed(5)}</td>
+            <td>${Number(row.expected_profit_usdt).toFixed(3)}</td>
+            <td class="risk-${row.risk_flag}">${row.risk_flag}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        rowLabel.textContent = String(rows.length);
+        sortLabel.textContent = `${state.sort.key} ${state.sort.dir}`;
+        updateStats(rows);
+      }
+
+      function updateSortHeaderStyles() {
+        document.querySelectorAll("th[data-key]").forEach((th) => {
+          const label = th.dataset.label || th.dataset.key;
+          if (th.dataset.key === state.sort.key) {
+            th.classList.add("sort");
+            th.textContent = `${label} ${state.sort.dir === "asc" ? "▲" : "▼"}`;
+          } else {
+            th.classList.remove("sort");
+            th.textContent = label;
+          }
+        });
+      }
+
+      function wireInteractions() {
+        symbolFilterInput.addEventListener("input", () => {
+          state.symbolFilter = symbolFilterInput.value.trim();
+          render();
+        });
+
+        document.querySelectorAll("th[data-key]").forEach((th) => {
+          th.addEventListener("click", () => {
+            const key = th.dataset.key;
+            if (state.sort.key === key) {
+              state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
+            } else {
+              state.sort.key = key;
+              state.sort.dir = "asc";
+            }
+            updateSortHeaderStyles();
+            render();
+          });
+        });
+
+        document.getElementById("saveSettings").addEventListener("click", saveSettings);
+        document.getElementById("exAll").addEventListener("click", () => {
+          exchangesEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = true);
+        });
+        document.getElementById("exNone").addEventListener("click", () => {
+          exchangesEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = false);
+        });
+        document.getElementById("symAll").addEventListener("click", () => {
+          symbolsEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = true);
+        });
+        document.getElementById("symNone").addEventListener("click", () => {
+          symbolsEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = false);
+        });
+      }
+
+      function connectWs() {
+        const schema = window.location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${schema}://${window.location.host}/ws/opportunities`);
+        ws.onopen = () => setMeta("Live stream connected");
+        ws.onclose = () => setMeta("Stream disconnected");
+        ws.onerror = () => setMeta("Stream error");
+        ws.onmessage = (event) => {
+          const payload = JSON.parse(event.data);
+          state.rows = payload.opportunities || [];
+          render();
+          setMeta(`Updated ${new Date().toLocaleTimeString()} | rows: ${payload.count || 0}`);
+        };
+      }
+
+      async function boot() {
+        wireInteractions();
+        await loadSettings();
+        updateSortHeaderStyles();
+        render();
+        connectWs();
+      }
+
+      boot();
+    </script>
+  </body>
+</html>

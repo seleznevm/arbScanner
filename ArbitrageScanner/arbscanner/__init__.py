@@ -1,0 +1,2 @@
+"""Arbitrage scanner MVP package."""
+

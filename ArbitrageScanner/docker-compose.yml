@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: arb_redis
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: arb_postgres
+    environment:
+      POSTGRES_USER: arb
+      POSTGRES_PASSWORD: arb
+      POSTGRES_DB: arbscanner
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: arb_api
+    env_file:
+      - .env.example
+    environment:
+      RUN_SCANNER_IN_API: "false"
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+    command: ["python", "ArbitrageScanner.py", "api", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build: .
+    container_name: arb_worker
+    env_file:
+      - .env.example
+    depends_on:
+      - redis
+    command: ["python", "ArbitrageScanner.py", "worker"]
+
+volumes:
+  pg_data:
