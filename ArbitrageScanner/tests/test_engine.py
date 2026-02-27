@@ -20,6 +20,7 @@ class EngineTests(unittest.TestCase):
     def test_detect_spatial_opportunity(self) -> None:
         settings = Settings(
             min_net_edge_pct=0.01,
+            min_spread_diff_pct=0.01,
             trade_notional_usdt=100.0,
             taker_fee_bps=1.0,
             slippage_bps=1.0,

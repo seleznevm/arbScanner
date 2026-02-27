@@ -74,6 +74,7 @@ class Settings:
     scan_interval_sec: int = 10
     stale_after_sec: int = 3
     trade_notional_usdt: float = 1000.0
+    min_spread_diff_pct: float = 5.0
     min_net_edge_pct: float = 0.2
     taker_fee_bps: float = 10.0
     slippage_bps: float = 5.0
@@ -99,6 +100,7 @@ class Settings:
             scan_interval_sec=int(os.getenv("SCAN_INTERVAL_SEC", "10")),
             stale_after_sec=int(os.getenv("STALE_AFTER_SEC", "3")),
             trade_notional_usdt=float(os.getenv("TRADE_NOTIONAL_USDT", "1000")),
+            min_spread_diff_pct=float(os.getenv("MIN_SPREAD_DIFF_PCT", "5")),
             min_net_edge_pct=float(os.getenv("MIN_NET_EDGE_PCT", "0.2")),
             taker_fee_bps=float(os.getenv("TAKER_FEE_BPS", "10")),
             slippage_bps=float(os.getenv("SLIPPAGE_BPS", "5")),

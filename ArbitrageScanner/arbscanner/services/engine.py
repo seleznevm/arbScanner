@@ -34,6 +34,7 @@ def detect_spatial_opportunities(
     orderbooks: dict[str, OrderBookSnapshot],
     settings: Settings,
     trade_notional_usdt: float | None = None,
+    min_spread_diff_pct: float | None = None,
     now: float | None = None,
 ) -> list[Opportunity]:
     now_ts = now or time.time()
@@ -44,6 +45,11 @@ def detect_spatial_opportunities(
         trade_notional_usdt
         if trade_notional_usdt is not None
         else settings.trade_notional_usdt
+    )
+    min_spread = (
+        min_spread_diff_pct
+        if min_spread_diff_pct is not None
+        else settings.min_spread_diff_pct
     )
 
     for buy_exchange in exchanges:
@@ -81,6 +87,8 @@ def detect_spatial_opportunities(
             if buy_vwap <= 0 or sell_vwap <= 0:
                 continue
             gross_edge_pct = ((sell_vwap - buy_vwap) / buy_vwap) * 100.0
+            if gross_edge_pct < min_spread:
+                continue
             fees_pct = 2.0 * settings.taker_fee_bps / 100.0
             slippage_pct = settings.slippage_bps / 100.0
             withdraw_pct = settings.withdraw_cost_usdt / (buy_vwap * qty) * 100.0

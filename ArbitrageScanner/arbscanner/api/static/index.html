@@ -269,6 +269,11 @@
           </div>
 
           <div class="row">
+            <label class="small" for="minSpreadDiff">Min spread diff (%)</label>
+            <input id="minSpreadDiff" type="number" min="0" step="0.1" />
+          </div>
+
+          <div class="row">
             <label class="small">Exchanges</label>
             <div class="chip-row">
               <button id="exAll" type="button">All</button>
@@ -347,6 +352,7 @@
 
       const scanIntervalEl = document.getElementById("scanInterval");
       const tradeNotionalEl = document.getElementById("tradeNotional");
+      const minSpreadDiffEl = document.getElementById("minSpreadDiff");
       const exchangesEl = document.getElementById("exchanges");
       const symbolsEl = document.getElementById("symbols");
 
@@ -371,6 +377,7 @@
           scanIntervalEl.appendChild(opt);
         });
         tradeNotionalEl.value = String(data.trade_notional_usdt);
+        minSpreadDiffEl.value = String(data.min_spread_diff_pct);
 
         renderPicker(exchangesEl, data.available_exchanges, new Set(data.active_exchanges));
         renderPicker(symbolsEl, data.available_symbols, new Set(data.active_symbols));
@@ -402,6 +409,7 @@
         const payload = {
           scan_interval_sec: Number(scanIntervalEl.value),
           trade_notional_usdt: Number(tradeNotionalEl.value),
+          min_spread_diff_pct: Number(minSpreadDiffEl.value),
           active_exchanges: collectChecked(exchangesEl),
           active_symbols: collectChecked(symbolsEl),
         };

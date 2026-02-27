@@ -20,6 +20,7 @@ class RuntimeSettingsUpdate(BaseModel):
     active_symbols: list[str] | None = None
     scan_interval_sec: int | None = Field(default=None)
     trade_notional_usdt: float | None = Field(default=None, gt=0)
+    min_spread_diff_pct: float | None = Field(default=None, ge=0)
 
 
 def _filter_payload(
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
         "scan_interval_sec": settings.scan_interval_sec,
         "allowed_scan_intervals_sec": ALLOWED_SCAN_INTERVALS_SEC,
         "trade_notional_usdt": settings.trade_notional_usdt,
+        "min_spread_diff_pct": settings.min_spread_diff_pct,
         "active_exchanges": sorted(settings.exchanges),
         "active_symbols": sorted(settings.symbols),
         "available_exchanges": sorted(settings.exchanges),
@@ -79,6 +81,7 @@ def create_app() -> FastAPI:
         return {
             "ok": True,
             "scan_interval_sec": runtime["scan_interval_sec"],
+            "min_spread_diff_pct": runtime["min_spread_diff_pct"],
             "broker_mode": "redis" if settings.use_redis else "inmemory",
             "run_scanner_in_api": settings.run_scanner_in_api,
             "symbols": runtime["active_symbols"],
@@ -128,6 +131,10 @@ def create_app() -> FastAPI:
             value = float(payload["trade_notional_usdt"])
             if value > 0:
                 current["trade_notional_usdt"] = value
+        if "min_spread_diff_pct" in payload:
+            value = float(payload["min_spread_diff_pct"])
+            if value >= 0:
+                current["min_spread_diff_pct"] = value
 
         app.state.runtime_settings = current
         return current

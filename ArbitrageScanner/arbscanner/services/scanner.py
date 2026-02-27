@@ -27,6 +27,7 @@ class RuntimePreferences:
     active_symbols: set[str]
     scan_interval_sec: int
     trade_notional_usdt: float
+    min_spread_diff_pct: float
 
     def to_dict(
         self,
@@ -37,6 +38,7 @@ class RuntimePreferences:
             "scan_interval_sec": self.scan_interval_sec,
             "allowed_scan_intervals_sec": ALLOWED_SCAN_INTERVALS_SEC,
             "trade_notional_usdt": self.trade_notional_usdt,
+            "min_spread_diff_pct": self.min_spread_diff_pct,
             "active_exchanges": sorted(self.active_exchanges),
             "active_symbols": sorted(self.active_symbols),
             "available_exchanges": sorted(available_exchanges),
@@ -66,6 +68,7 @@ class ScannerRuntime:
             active_symbols=set(settings.symbols),
             scan_interval_sec=settings.scan_interval_sec,
             trade_notional_usdt=settings.trade_notional_usdt,
+            min_spread_diff_pct=settings.min_spread_diff_pct,
         )
         self._prefs_lock = asyncio.Lock()
         self._tasks: list[asyncio.Task[None]] = []
@@ -137,6 +140,12 @@ class ScannerRuntime:
                 if value > 0:
                     self.preferences.trade_notional_usdt = value
 
+            min_spread = payload.get("min_spread_diff_pct")
+            if min_spread is not None:
+                value = float(min_spread)
+                if value >= 0:
+                    self.preferences.min_spread_diff_pct = value
+
             return self.preferences.to_dict(
                 available_exchanges=self.available_exchanges,
                 available_symbols=self.available_symbols,
@@ -149,6 +158,7 @@ class ScannerRuntime:
                 active_symbols=set(self.preferences.active_symbols),
                 scan_interval_sec=self.preferences.scan_interval_sec,
                 trade_notional_usdt=self.preferences.trade_notional_usdt,
+                min_spread_diff_pct=self.preferences.min_spread_diff_pct,
             )
 
     async def _scan_loop(self) -> None:
@@ -172,6 +182,7 @@ class ScannerRuntime:
                         orderbooks=filtered_books,
                         settings=self.settings,
                         trade_notional_usdt=prefs.trade_notional_usdt,
+                        min_spread_diff_pct=prefs.min_spread_diff_pct,
                         now=start_ts,
                     )
                 )
