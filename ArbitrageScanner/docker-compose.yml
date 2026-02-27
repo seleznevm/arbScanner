@@ -24,8 +24,6 @@ services:
     container_name: arb_api
     env_file:
       - .env.example
-    environment:
-      RUN_SCANNER_IN_API: "false"
     depends_on:
       - redis
       - postgres
@@ -46,6 +44,7 @@ services:
       - traefik-proxy
 
   worker:
+    profiles: ["worker"]
     build: .
     container_name: arb_worker
     env_file:

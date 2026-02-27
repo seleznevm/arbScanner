@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -41,7 +42,7 @@ def _filter_payload(
 def create_app() -> FastAPI:
     settings = Settings.from_env()
     broker = build_broker(settings)
-    scanner = (
+    initial_scanner = (
         ScannerRuntime(settings=settings, broker=broker)
         if settings.run_scanner_in_api
         else None
@@ -50,7 +51,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Arbitrage Scanner MVP", version="0.1.0")
     app.state.settings = settings
     app.state.broker = broker
-    app.state.scanner = scanner
+    app.state.scanner = initial_scanner
+    app.state.fallback_task = None
+    app.state.fallback_scanner_started = False
     app.state.runtime_settings = {
         "scan_interval_sec": settings.scan_interval_sec,
         "allowed_scan_intervals_sec": ALLOWED_SCAN_INTERVALS_SEC,
@@ -63,17 +66,49 @@ def create_app() -> FastAPI:
         "available_symbols": sorted(settings.symbol_universe),
     }
 
+    def _scanner() -> ScannerRuntime | None:
+        return app.state.scanner
+
+    async def _fallback_start_scanner_if_idle() -> None:
+        # If API was launched without scanner and feed stays empty, start local scanner.
+        try:
+            for _ in range(3):
+                await asyncio.sleep(1.0)
+                if broker.get_latest():
+                    return
+            if _scanner() is None:
+                fallback = ScannerRuntime(settings=settings, broker=broker)
+                await fallback.start()
+                app.state.scanner = fallback
+                app.state.fallback_scanner_started = True
+                LOGGER.warning(
+                    "Feed stayed empty: fallback scanner started in API process"
+                )
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            LOGGER.exception("Failed to start fallback scanner")
+
     @app.on_event("startup")
     async def _startup() -> None:
         await broker.start()
-        if scanner:
-            await scanner.start()
+        if _scanner():
+            await _scanner().start()
+        else:
+            app.state.fallback_task = asyncio.create_task(
+                _fallback_start_scanner_if_idle(),
+                name="fallback-scanner-start",
+            )
         LOGGER.info("API startup complete")
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
-        if scanner:
-            await scanner.stop()
+        if app.state.fallback_task is not None:
+            app.state.fallback_task.cancel()
+            await asyncio.gather(app.state.fallback_task, return_exceptions=True)
+            app.state.fallback_task = None
+        if _scanner():
+            await _scanner().stop()
         await broker.stop()
         LOGGER.info("API shutdown complete")
 
@@ -83,8 +118,8 @@ def create_app() -> FastAPI:
         counters: dict[str, object] = {
             "opportunities_in_feed": len(broker.get_latest()),
         }
-        if scanner:
-            status = await scanner.get_status_snapshot()
+        if _scanner():
+            status = await _scanner().get_status_snapshot()
             counters = dict(status.get("counters", {}))
         return {
             "ok": True,
@@ -94,6 +129,7 @@ def create_app() -> FastAPI:
             "broker_mode": "redis" if settings.use_redis else "inmemory",
             "connector_mode": settings.connector_mode,
             "run_scanner_in_api": settings.run_scanner_in_api,
+            "fallback_scanner_started": app.state.fallback_scanner_started,
             "symbols": runtime["active_symbols"],
             "exchanges": len(runtime["active_exchanges"]),
             "counters": counters,
@@ -101,9 +137,10 @@ def create_app() -> FastAPI:
 
     @app.get("/api/status")
     async def get_status() -> dict[str, object]:
-        if scanner:
-            status = await scanner.get_status_snapshot()
+        if _scanner():
+            status = await _scanner().get_status_snapshot()
             status["feed_size"] = len(broker.get_latest())
+            status["fallback_scanner_started"] = app.state.fallback_scanner_started
             return status
         return {
             "started": False,
@@ -125,12 +162,13 @@ def create_app() -> FastAPI:
             },
             "exchanges": [],
             "feed_size": len(broker.get_latest()),
+            "fallback_scanner_started": app.state.fallback_scanner_started,
         }
 
     @app.get("/api/settings")
     async def get_settings() -> dict[str, object]:
-        if scanner:
-            runtime = await scanner.get_runtime_settings()
+        if _scanner():
+            runtime = await _scanner().get_runtime_settings()
             app.state.runtime_settings = runtime
             return runtime
         return app.state.runtime_settings
@@ -140,8 +178,8 @@ def create_app() -> FastAPI:
         update: RuntimeSettingsUpdate = Body(...),
     ) -> dict[str, object]:
         payload = update.model_dump(exclude_none=True)
-        if scanner:
-            runtime = await scanner.update_runtime_settings(payload)
+        if _scanner():
+            runtime = await _scanner().update_runtime_settings(payload)
             app.state.runtime_settings = runtime
             return runtime
 
