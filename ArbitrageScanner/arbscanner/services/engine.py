@@ -26,6 +26,38 @@ def compute_vwap(levels: list[OrderBookLevel], qty: float) -> tuple[float, float
     return notional / filled, filled
 
 
+def compute_fill_for_budget(
+    levels: list[OrderBookLevel],
+    budget_usdt: float,
+) -> tuple[float, float, float]:
+    if budget_usdt <= 0:
+        return 0.0, 0.0, 0.0
+
+    remaining_budget = budget_usdt
+    total_notional = 0.0
+    filled_qty = 0.0
+    for level in levels:
+        if remaining_budget <= 0:
+            break
+        if level.price <= 0:
+            continue
+        max_take_qty = remaining_budget / level.price
+        take_qty = min(level.qty, max_take_qty)
+        if take_qty <= 0:
+            continue
+        cost = take_qty * level.price
+        total_notional += cost
+        filled_qty += take_qty
+        remaining_budget -= cost
+        if take_qty < level.qty:
+            # Budget is exhausted inside this level.
+            break
+
+    if filled_qty <= 0:
+        return 0.0, 0.0, 0.0
+    return total_notional / filled_qty, filled_qty, total_notional
+
+
 def _sum_qty(levels: list[OrderBookLevel]) -> float:
     return sum(level.qty for level in levels)
 
@@ -67,37 +99,52 @@ def detect_spatial_opportunities(
             if now_ts - sell_book.ts_ingest > settings.stale_after_sec:
                 continue
 
-            if not buy_book.asks:
-                continue
-            best_ask = buy_book.asks[0].price
-            if best_ask <= 0:
-                continue
-            target_qty = target_notional / best_ask
-            max_fill_qty = min(_sum_qty(buy_book.asks), _sum_qty(sell_book.bids))
-            max_qty = min(target_qty, max_fill_qty)
-            if max_qty <= 0.0:
+            if not buy_book.asks or not sell_book.bids:
                 continue
 
-            buy_vwap, buy_filled = compute_vwap(buy_book.asks, max_qty)
-            sell_vwap, sell_filled = compute_vwap(sell_book.bids, max_qty)
+            _, buy_qty_by_budget, _ = compute_fill_for_budget(
+                buy_book.asks,
+                target_notional,
+            )
+            if buy_qty_by_budget <= 0:
+                continue
+            qty = min(buy_qty_by_budget, _sum_qty(sell_book.bids))
+            if qty <= 0:
+                continue
+
+            buy_vwap, buy_filled = compute_vwap(buy_book.asks, qty)
+            sell_vwap, sell_filled = compute_vwap(sell_book.bids, qty)
             qty = min(buy_filled, sell_filled)
             if qty <= 0:
                 continue
 
+            # Re-evaluate VWAP for final executable qty after both-side depth check.
+            buy_vwap, _ = compute_vwap(buy_book.asks, qty)
+            sell_vwap, _ = compute_vwap(sell_book.bids, qty)
             if buy_vwap <= 0 or sell_vwap <= 0:
                 continue
-            gross_edge_pct = ((sell_vwap - buy_vwap) / buy_vwap) * 100.0
+
+            buy_notional = buy_vwap * qty
+            sell_notional = sell_vwap * qty
+            if buy_notional <= 0:
+                continue
+
+            gross_profit = sell_notional - buy_notional
+            gross_edge_pct = (gross_profit / buy_notional) * 100.0
             if gross_edge_pct < min_spread:
                 continue
-            fees_pct = 2.0 * settings.taker_fee_bps / 100.0
-            slippage_pct = settings.slippage_bps / 100.0
-            withdraw_pct = settings.withdraw_cost_usdt / (buy_vwap * qty) * 100.0
-            net_edge_pct = gross_edge_pct - fees_pct - slippage_pct - withdraw_pct
 
+            taker_fee_rate = settings.taker_fee_bps / 10000.0
+            slippage_rate = settings.slippage_bps / 10000.0
+            fees_cost = (buy_notional + sell_notional) * taker_fee_rate
+            slippage_cost = buy_notional * slippage_rate
+            withdraw_cost = settings.withdraw_cost_usdt
+
+            net_profit = gross_profit - fees_cost - slippage_cost - withdraw_cost
+            net_edge_pct = (net_profit / buy_notional) * 100.0
             if net_edge_pct < settings.min_net_edge_pct:
                 continue
 
-            expected_profit = buy_vwap * qty * (net_edge_pct / 100.0)
             opportunities.append(
                 Opportunity(
                     opportunity_type="spatial",
@@ -108,7 +155,7 @@ def detect_spatial_opportunities(
                     sell_vwap=sell_vwap,
                     gross_edge_pct=gross_edge_pct,
                     net_edge_pct=net_edge_pct,
-                    expected_profit_usdt=expected_profit,
+                    expected_profit_usdt=net_profit,
                     available_qty=qty,
                     risk_flag=_risk_flag(net_edge_pct),
                     ts_detected=now_ts,

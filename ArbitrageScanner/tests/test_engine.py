@@ -52,6 +52,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(best.buy_exchange, "a")
         self.assertEqual(best.sell_exchange, "b")
         self.assertGreater(best.net_edge_pct, 0.0)
+        self.assertLessEqual(best.buy_vwap * best.available_qty, settings.trade_notional_usdt + 1e-8)
 
 
 if __name__ == "__main__":
