@@ -44,6 +44,7 @@ class Opportunity:
     sell_exchange: str
     buy_vwap: float
     sell_vwap: float
+    levtsov_spread_pct: float
     gross_edge_pct: float
     net_edge_pct: float
     expected_profit_usdt: float
@@ -62,4 +63,3 @@ class Opportunity:
         payload = asdict(self)
         payload["id"] = self.fingerprint
         return payload
-

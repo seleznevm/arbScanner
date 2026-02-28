@@ -314,7 +314,7 @@ class ScannerRuntime:
                         settings=self.settings,
                         trade_notional_usdt=prefs.trade_notional_usdt,
                         min_spread_diff_pct=prefs.min_spread_diff_pct,
-                        min_net_edge_pct=prefs.min_net_edge_pct,
+                        min_net_edge_pct=-999.0,
                         taker_fee_bps=prefs.taker_fee_bps,
                         slippage_bps=prefs.slippage_bps,
                         withdraw_cost_usdt=prefs.withdraw_cost_usdt,
@@ -327,7 +327,7 @@ class ScannerRuntime:
                         settings=self.settings,
                     )
                 )
-            opportunities.sort(key=lambda item: item.net_edge_pct, reverse=True)
+            opportunities.sort(key=lambda item: item.levtsov_spread_pct, reverse=True)
             opportunities = opportunities[:150]
             self.latest_scan_count = len(opportunities)
             await self.broker.publish(opportunities)

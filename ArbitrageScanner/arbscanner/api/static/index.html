@@ -300,6 +300,10 @@
         font-family: "IBM Plex Mono", Consolas, monospace;
       }
 
+      .view-levtsov .row-net {
+        display: none;
+      }
+
       @media (max-width: 980px) {
         .grid {
           grid-template-columns: 1fr;
@@ -312,11 +316,6 @@
         }
         .stats {
           grid-template-columns: 1fr 1fr;
-        }
-        th:nth-child(4), td:nth-child(4),
-        th:nth-child(5), td:nth-child(5),
-        th:nth-child(7), td:nth-child(7) {
-          display: none;
         }
       }
     </style>
@@ -341,26 +340,26 @@
           </div>
 
           <div class="row">
-            <label class="small" for="minSpreadDiff">Min spread diff (%)</label>
-            <input id="minSpreadDiff" type="number" min="0" step="0.1" />
+            <label class="small" for="minSpreadDiff">Min Levtsov spread (%)</label>
+            <input id="minSpreadDiff" type="number" min="0" step="0.01" />
           </div>
 
-          <div class="row">
+          <div class="row row-net">
             <label class="small" for="minNetEdge">Min net edge (%)</label>
             <input id="minNetEdge" type="number" step="0.1" />
           </div>
 
-          <div class="row">
+          <div class="row row-net">
             <label class="small" for="takerFeeBps">Taker fee (bps, one side)</label>
             <input id="takerFeeBps" type="number" min="0" step="0.1" />
           </div>
 
-          <div class="row">
+          <div class="row row-net">
             <label class="small" for="slippageBps">Slippage (bps)</label>
             <input id="slippageBps" type="number" min="0" step="0.1" />
           </div>
 
-          <div class="row">
+          <div class="row row-net">
             <label class="small" for="withdrawCostUsdt">Withdraw/rebalance cost (USDT)</label>
             <input id="withdrawCostUsdt" type="number" min="0" step="0.1" />
           </div>
@@ -380,6 +379,7 @@
             <div class="chip-row">
               <button id="symAll" type="button">All</button>
               <button id="symNone" type="button">None</button>
+              <button id="symLowLiq" type="button">Low-liq preset</button>
             </div>
             <div class="picker" id="symbols"></div>
           </div>
@@ -390,7 +390,8 @@
 
         <div class="card content">
           <div class="tabbar">
-            <button class="tabbtn active" id="tabOpps" type="button">Opportunities</button>
+            <button class="tabbtn active" id="tabLevtsov" type="button">Levtsov Spread</button>
+            <button class="tabbtn" id="tabNet" type="button">Net Edge</button>
             <button class="tabbtn" id="tabStatus" type="button">Status</button>
           </div>
 
@@ -407,26 +408,15 @@
             </div>
 
             <div class="stats">
-              <div class="stat"><div class="k">Top Net Edge</div><div class="v" id="sTop">0.000%</div></div>
-              <div class="stat"><div class="k">Avg Net Edge</div><div class="v" id="sAvg">0.000%</div></div>
-              <div class="stat"><div class="k">Projected PnL (Top 10)</div><div class="v" id="sPnl">0.00</div></div>
+              <div class="stat"><div class="k" id="sTopLabel">Top Levtsov Spread</div><div class="v" id="sTop">0.000%</div></div>
+              <div class="stat"><div class="k" id="sAvgLabel">Avg Levtsov Spread</div><div class="v" id="sAvg">0.000%</div></div>
+              <div class="stat"><div class="k" id="sPnlLabel">Avg Gross Edge</div><div class="v" id="sPnl">0.000%</div></div>
               <div class="stat"><div class="k">Active Symbols</div><div class="v" id="sSym">0</div></div>
             </div>
 
             <table>
               <thead>
-                <tr>
-                  <th data-key="symbol" data-label="Symbol">Symbol</th>
-                  <th data-key="buy_exchange" data-label="Buy">Buy</th>
-                  <th data-key="sell_exchange" data-label="Sell">Sell</th>
-                  <th data-key="buy_vwap" data-label="Buy price">Buy price</th>
-                  <th data-key="sell_vwap" data-label="Sell price">Sell price</th>
-                  <th data-key="net_edge_pct" data-label="Net Edge">Net Edge</th>
-                  <th data-key="gross_edge_pct" data-label="Gross Edge">Gross Edge</th>
-                  <th data-key="available_qty" data-label="Qty">Qty</th>
-                  <th data-key="expected_profit_usdt" data-label="Profit USDT">Profit USDT</th>
-                  <th data-key="risk_flag" data-label="Risk">Risk</th>
-                </tr>
+                <tr id="oppsHead"></tr>
               </thead>
               <tbody id="tbody"></tbody>
             </table>
@@ -461,17 +451,52 @@
     </div>
 
     <script>
+      const VIEW_COLUMNS = {
+        levtsov: [
+          { key: "symbol", label: "Symbol" },
+          { key: "buy_exchange", label: "Buy" },
+          { key: "sell_exchange", label: "Sell" },
+          { key: "buy_vwap", label: "Buy price" },
+          { key: "sell_vwap", label: "Sell price" },
+          { key: "levtsov_spread_pct", label: "Levtsov Spread" },
+          { key: "gross_edge_pct", label: "Gross Edge" },
+          { key: "available_qty", label: "Qty" }
+        ],
+        net: [
+          { key: "symbol", label: "Symbol" },
+          { key: "buy_exchange", label: "Buy" },
+          { key: "sell_exchange", label: "Sell" },
+          { key: "buy_vwap", label: "Buy price" },
+          { key: "sell_vwap", label: "Sell price" },
+          { key: "net_edge_pct", label: "Net Edge" },
+          { key: "gross_edge_pct", label: "Gross Edge" },
+          { key: "available_qty", label: "Qty" },
+          { key: "expected_profit_usdt", label: "Profit USDT" },
+          { key: "risk_flag", label: "Risk" }
+        ]
+      };
+
       const state = {
         rows: [],
-        sort: { key: "net_edge_pct", dir: "desc" },
+        activeView: "levtsov",
+        sort: { key: "levtsov_spread_pct", dir: "desc" },
         symbolFilter: "",
         symbolSettingsFilter: "",
         settings: null,
-        selectedSymbols: new Set(),
+        selectedSymbols: new Set()
       };
 
+      const LOW_LIQ_SYMBOLS = [
+        "ARB-USDT", "OP-USDT", "SUI-USDT", "SEI-USDT", "APT-USDT",
+        "TON-USDT", "NEAR-USDT", "TAO-USDT", "HYPE-USDT", "ENA-USDT",
+        "ONDO-USDT", "RNDR-USDT", "RENDER-USDT", "INJ-USDT", "AR-USDT",
+        "JUP-USDT", "RUNE-USDT", "DYDX-USDT", "TIA-USDT", "LDO-USDT"
+      ];
+
+      const shell = document.querySelector(".shell");
       const meta = document.getElementById("meta");
       const tbody = document.getElementById("tbody");
+      const oppsHead = document.getElementById("oppsHead");
       const symbolFilterInput = document.getElementById("symbolFilter");
       const rowLabel = document.getElementById("rowLabel");
 
@@ -487,21 +512,49 @@
       const symbolsEl = document.getElementById("symbols");
       const symbolsSearchEl = document.getElementById("symbolsSearch");
       const statusTbody = document.getElementById("statusTbody");
-      const tabOpps = document.getElementById("tabOpps");
+      const tabLevtsov = document.getElementById("tabLevtsov");
+      const tabNet = document.getElementById("tabNet");
       const tabStatus = document.getElementById("tabStatus");
       const oppsPanel = document.getElementById("oppsPanel");
       const statusPanel = document.getElementById("statusPanel");
+      const sTopLabel = document.getElementById("sTopLabel");
+      const sAvgLabel = document.getElementById("sAvgLabel");
+      const sPnlLabel = document.getElementById("sPnlLabel");
 
       function setMeta(text) {
         meta.textContent = text;
       }
 
+      function currentColumns() {
+        return VIEW_COLUMNS[state.activeView];
+      }
+
+      function ensureSortForView() {
+        const keys = new Set(currentColumns().map((col) => col.key));
+        if (!keys.has(state.sort.key)) {
+          state.sort.key = state.activeView === "levtsov" ? "levtsov_spread_pct" : "net_edge_pct";
+          state.sort.dir = "desc";
+        }
+      }
+
       function switchTab(name) {
-        const isOpps = name === "opps";
-        tabOpps.classList.toggle("active", isOpps);
-        tabStatus.classList.toggle("active", !isOpps);
-        oppsPanel.classList.toggle("active", isOpps);
-        statusPanel.classList.toggle("active", !isOpps);
+        const isStatus = name === "status";
+        if (!isStatus) {
+          state.activeView = name;
+        }
+        tabLevtsov.classList.toggle("active", !isStatus && state.activeView === "levtsov");
+        tabNet.classList.toggle("active", !isStatus && state.activeView === "net");
+        tabStatus.classList.toggle("active", isStatus);
+        oppsPanel.classList.toggle("active", !isStatus);
+        statusPanel.classList.toggle("active", isStatus);
+        shell.classList.toggle("view-levtsov", state.activeView === "levtsov");
+        updateBreakevenHint();
+        if (!isStatus) {
+          ensureSortForView();
+          renderTableHeader();
+          updateSortHeaderStyles();
+          render();
+        }
       }
 
       async function loadSettings() {
@@ -597,21 +650,28 @@
           slippage_bps: Number(slippageBpsEl.value),
           withdraw_cost_usdt: Number(withdrawCostUsdtEl.value),
           active_exchanges: collectChecked(exchangesEl),
-          active_symbols: Array.from(state.selectedSymbols),
+          active_symbols: Array.from(state.selectedSymbols)
         };
         const res = await fetch("/api/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         state.settings = data;
         hydrateSettingsUI(data);
         await loadStatus();
+        render();
         setMeta(`Settings saved at ${new Date().toLocaleTimeString()}`);
       }
 
       function updateBreakevenHint() {
+        if (state.activeView === "levtsov") {
+          breakevenHintEl.textContent =
+            "Levtsov tab uses only Min Levtsov spread filter. Net costs are used in Net Edge tab.";
+          return;
+        }
+
         const tradeNotional = Number(tradeNotionalEl.value || 0);
         const minNet = Number(minNetEdgeEl.value || 0);
         const takerPct = (2 * Number(takerFeeBpsEl.value || 0)) / 100;
@@ -676,7 +736,7 @@
 
       function parseSortValue(row, key) {
         const v = row[key];
-        if (["buy_vwap", "sell_vwap", "net_edge_pct", "gross_edge_pct", "available_qty", "expected_profit_usdt"].includes(key)) {
+        if (["buy_vwap", "sell_vwap", "levtsov_spread_pct", "net_edge_pct", "gross_edge_pct", "available_qty", "expected_profit_usdt"].includes(key)) {
           return Number(v || 0);
         }
         return String(v || "").toLowerCase();
@@ -689,12 +749,31 @@
         return n.toFixed(6);
       }
 
+      function formatCell(row, key) {
+        if (key === "buy_vwap" || key === "sell_vwap") return formatPrice(row[key]);
+        if (key === "levtsov_spread_pct" || key === "net_edge_pct" || key === "gross_edge_pct") {
+          return `${Number(row[key] || 0).toFixed(3)}%`;
+        }
+        if (key === "available_qty") return Number(row[key] || 0).toFixed(5);
+        if (key === "expected_profit_usdt") return Number(row[key] || 0).toFixed(3);
+        return String(row[key] ?? "");
+      }
+
       function applyFilterSort(rows) {
         let out = rows.slice();
         if (state.symbolFilter) {
           const needle = state.symbolFilter.toLowerCase();
           out = out.filter((r) => String(r.symbol || "").toLowerCase().includes(needle));
         }
+
+        if (state.activeView === "levtsov") {
+          const minLevtsov = Number(minSpreadDiffEl.value || 0);
+          out = out.filter((r) => Number(r.levtsov_spread_pct || 0) >= minLevtsov);
+        } else if (state.activeView === "net") {
+          const minNet = Number(minNetEdgeEl.value || -999);
+          out = out.filter((r) => Number(r.net_edge_pct || 0) >= minNet);
+        }
+
         out.sort((a, b) => {
           const av = parseSortValue(a, state.sort.key);
           const bv = parseSortValue(b, state.sort.key);
@@ -706,39 +785,63 @@
       }
 
       function updateStats(rows) {
+        if (state.activeView === "levtsov") {
+          const top = rows[0]?.levtsov_spread_pct || 0;
+          const avg = rows.length
+            ? rows.reduce((s, r) => s + Number(r.levtsov_spread_pct || 0), 0) / rows.length
+            : 0;
+          const avgGross = rows.length
+            ? rows.reduce((s, r) => s + Number(r.gross_edge_pct || 0), 0) / rows.length
+            : 0;
+          sTopLabel.textContent = "Top Levtsov Spread";
+          sAvgLabel.textContent = "Avg Levtsov Spread";
+          sPnlLabel.textContent = "Avg Gross Edge";
+          document.getElementById("sTop").textContent = `${Number(top).toFixed(3)}%`;
+          document.getElementById("sAvg").textContent = `${Number(avg).toFixed(3)}%`;
+          document.getElementById("sPnl").textContent = `${Number(avgGross).toFixed(3)}%`;
+          return;
+        }
+
         const top = rows[0]?.net_edge_pct || 0;
         const avg = rows.length ? rows.reduce((s, r) => s + Number(r.net_edge_pct || 0), 0) / rows.length : 0;
         const pnl = rows.slice(0, 10).reduce((s, r) => s + Number(r.expected_profit_usdt || 0), 0);
+        sTopLabel.textContent = "Top Net Edge";
+        sAvgLabel.textContent = "Avg Net Edge";
+        sPnlLabel.textContent = "Projected PnL (Top 10)";
         document.getElementById("sTop").textContent = `${Number(top).toFixed(3)}%`;
         document.getElementById("sAvg").textContent = `${Number(avg).toFixed(3)}%`;
         document.getElementById("sPnl").textContent = Number(pnl).toFixed(2);
       }
 
+      function renderTableHeader() {
+        const cols = currentColumns();
+        oppsHead.innerHTML = cols.map((col) => (
+          `<th data-key="${col.key}" data-label="${col.label}">${col.label}</th>`
+        )).join("");
+      }
+
       function render() {
         const rows = applyFilterSort(state.rows);
+        const cols = currentColumns();
         tbody.innerHTML = "";
         rows.slice(0, 150).forEach((row) => {
           const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${row.symbol}</td>
-            <td>${row.buy_exchange}</td>
-            <td>${row.sell_exchange}</td>
-            <td>${formatPrice(row.buy_vwap)}</td>
-            <td>${formatPrice(row.sell_vwap)}</td>
-            <td>${Number(row.net_edge_pct).toFixed(3)}%</td>
-            <td>${Number(row.gross_edge_pct).toFixed(3)}%</td>
-            <td>${Number(row.available_qty).toFixed(5)}</td>
-            <td>${Number(row.expected_profit_usdt).toFixed(3)}</td>
-            <td class="risk-${row.risk_flag}">${row.risk_flag}</td>
-          `;
+          tr.innerHTML = cols.map((col) => {
+            const cellValue = formatCell(row, col.key);
+            if (col.key === "risk_flag") {
+              return `<td class="risk-${String(row.risk_flag || "red")}">${cellValue}</td>`;
+            }
+            return `<td>${cellValue}</td>`;
+          }).join("");
           tbody.appendChild(tr);
         });
         rowLabel.textContent = String(rows.length);
+        updateSortHeaderStyles();
         updateStats(rows);
       }
 
       function updateSortHeaderStyles() {
-        document.querySelectorAll("th[data-key]").forEach((th) => {
+        oppsHead.querySelectorAll("th[data-key]").forEach((th) => {
           const label = th.dataset.label || th.dataset.key;
           if (th.dataset.key === state.sort.key) {
             th.classList.add("sort");
@@ -755,11 +858,16 @@
           state.symbolFilter = symbolFilterInput.value.trim();
           render();
         });
+        minSpreadDiffEl.addEventListener("input", render);
+        minNetEdgeEl.addEventListener("input", () => {
+          updateBreakevenHint();
+          render();
+        });
         tradeNotionalEl.addEventListener("input", updateBreakevenHint);
-        minNetEdgeEl.addEventListener("input", updateBreakevenHint);
         takerFeeBpsEl.addEventListener("input", updateBreakevenHint);
         slippageBpsEl.addEventListener("input", updateBreakevenHint);
         withdrawCostUsdtEl.addEventListener("input", updateBreakevenHint);
+
         symbolsSearchEl.addEventListener("input", () => {
           syncSelectedSymbolsFromDom();
           state.symbolSettingsFilter = symbolsSearchEl.value;
@@ -770,22 +878,22 @@
           document.getElementById("sSym").textContent = String(state.selectedSymbols.size);
         });
 
-        document.querySelectorAll("th[data-key]").forEach((th) => {
-          th.addEventListener("click", () => {
-            const key = th.dataset.key;
-            if (state.sort.key === key) {
-              state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
-            } else {
-              state.sort.key = key;
-              state.sort.dir = "asc";
-            }
-            updateSortHeaderStyles();
-            render();
-          });
+        oppsHead.addEventListener("click", (event) => {
+          const th = event.target.closest("th[data-key]");
+          if (!th) return;
+          const key = th.dataset.key;
+          if (state.sort.key === key) {
+            state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
+          } else {
+            state.sort.key = key;
+            state.sort.dir = "desc";
+          }
+          render();
         });
 
         document.getElementById("saveSettings").addEventListener("click", saveSettings);
-        tabOpps.addEventListener("click", () => switchTab("opps"));
+        tabLevtsov.addEventListener("click", () => switchTab("levtsov"));
+        tabNet.addEventListener("click", () => switchTab("net"));
         tabStatus.addEventListener("click", () => switchTab("status"));
         document.getElementById("exAll").addEventListener("click", () => {
           exchangesEl.querySelectorAll("input[type='checkbox']").forEach((x) => x.checked = true);
@@ -803,6 +911,15 @@
           state.selectedSymbols = new Set();
           renderSymbolsPicker();
           document.getElementById("sSym").textContent = "0";
+        });
+        document.getElementById("symLowLiq").addEventListener("click", () => {
+          if (!state.settings) return;
+          const available = new Set(state.settings.available_symbols || []);
+          state.selectedSymbols = new Set(
+            LOW_LIQ_SYMBOLS.filter((symbol) => available.has(symbol))
+          );
+          renderSymbolsPicker();
+          document.getElementById("sSym").textContent = String(state.selectedSymbols.size);
         });
       }
 
@@ -825,8 +942,7 @@
         await loadSettings();
         await loadStatus();
         setInterval(loadStatus, 5000);
-        updateSortHeaderStyles();
-        render();
+        switchTab("levtsov");
         connectWs();
       }
 
@@ -834,4 +950,3 @@
     </script>
   </body>
 </html>
-

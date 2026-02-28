@@ -51,6 +51,7 @@ class EngineTests(unittest.TestCase):
         best = opportunities[0]
         self.assertEqual(best.buy_exchange, "a")
         self.assertEqual(best.sell_exchange, "b")
+        self.assertAlmostEqual(best.levtsov_spread_pct, (1.0 - 100.0 / 102.0) * 100.0, places=6)
         self.assertGreater(best.net_edge_pct, 0.0)
         self.assertLessEqual(best.buy_vwap * best.available_qty, settings.trade_notional_usdt + 1e-8)
 

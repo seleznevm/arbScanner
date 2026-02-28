@@ -151,7 +151,8 @@ def detect_spatial_opportunities(
 
             gross_profit = sell_notional - buy_notional
             gross_edge_pct = (gross_profit / buy_notional) * 100.0
-            if gross_edge_pct < min_spread:
+            levtsov_spread_pct = (1.0 - (buy_vwap / sell_vwap)) * 100.0
+            if levtsov_spread_pct < min_spread:
                 continue
 
             taker_fee_rate = taker_fee_bps_value / 10000.0
@@ -173,6 +174,7 @@ def detect_spatial_opportunities(
                     sell_exchange=sell_exchange,
                     buy_vwap=buy_vwap,
                     sell_vwap=sell_vwap,
+                    levtsov_spread_pct=levtsov_spread_pct,
                     gross_edge_pct=gross_edge_pct,
                     net_edge_pct=net_edge_pct,
                     expected_profit_usdt=net_profit,
