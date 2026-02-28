@@ -29,6 +29,9 @@ class RuntimePreferences:
     trade_notional_usdt: float
     min_spread_diff_pct: float
     min_net_edge_pct: float
+    taker_fee_bps: float
+    slippage_bps: float
+    withdraw_cost_usdt: float
 
     def to_dict(
         self,
@@ -41,6 +44,9 @@ class RuntimePreferences:
             "trade_notional_usdt": self.trade_notional_usdt,
             "min_spread_diff_pct": self.min_spread_diff_pct,
             "min_net_edge_pct": self.min_net_edge_pct,
+            "taker_fee_bps": self.taker_fee_bps,
+            "slippage_bps": self.slippage_bps,
+            "withdraw_cost_usdt": self.withdraw_cost_usdt,
             "active_exchanges": sorted(self.active_exchanges),
             "active_symbols": sorted(self.active_symbols),
             "available_exchanges": sorted(available_exchanges),
@@ -73,6 +79,9 @@ class ScannerRuntime:
             trade_notional_usdt=settings.trade_notional_usdt,
             min_spread_diff_pct=settings.min_spread_diff_pct,
             min_net_edge_pct=settings.min_net_edge_pct,
+            taker_fee_bps=settings.taker_fee_bps,
+            slippage_bps=settings.slippage_bps,
+            withdraw_cost_usdt=settings.withdraw_cost_usdt,
         )
         self._prefs_lock = asyncio.Lock()
         self._tasks: list[asyncio.Task[None]] = []
@@ -236,6 +245,24 @@ class ScannerRuntime:
             if min_net is not None:
                 self.preferences.min_net_edge_pct = float(min_net)
 
+            taker_fee = payload.get("taker_fee_bps")
+            if taker_fee is not None:
+                value = float(taker_fee)
+                if value >= 0:
+                    self.preferences.taker_fee_bps = value
+
+            slippage = payload.get("slippage_bps")
+            if slippage is not None:
+                value = float(slippage)
+                if value >= 0:
+                    self.preferences.slippage_bps = value
+
+            withdraw_cost = payload.get("withdraw_cost_usdt")
+            if withdraw_cost is not None:
+                value = float(withdraw_cost)
+                if value >= 0:
+                    self.preferences.withdraw_cost_usdt = value
+
             data = self.preferences.to_dict(
                 available_exchanges=self.available_exchanges,
                 available_symbols=self.available_symbols,
@@ -259,6 +286,9 @@ class ScannerRuntime:
                 trade_notional_usdt=self.preferences.trade_notional_usdt,
                 min_spread_diff_pct=self.preferences.min_spread_diff_pct,
                 min_net_edge_pct=self.preferences.min_net_edge_pct,
+                taker_fee_bps=self.preferences.taker_fee_bps,
+                slippage_bps=self.preferences.slippage_bps,
+                withdraw_cost_usdt=self.preferences.withdraw_cost_usdt,
             )
 
     async def _scan_loop(self) -> None:
@@ -285,6 +315,9 @@ class ScannerRuntime:
                         trade_notional_usdt=prefs.trade_notional_usdt,
                         min_spread_diff_pct=prefs.min_spread_diff_pct,
                         min_net_edge_pct=prefs.min_net_edge_pct,
+                        taker_fee_bps=prefs.taker_fee_bps,
+                        slippage_bps=prefs.slippage_bps,
+                        withdraw_cost_usdt=prefs.withdraw_cost_usdt,
                         now=start_ts,
                     )
                 )

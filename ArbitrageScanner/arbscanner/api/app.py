@@ -23,6 +23,9 @@ class RuntimeSettingsUpdate(BaseModel):
     trade_notional_usdt: float | None = Field(default=None, gt=0)
     min_spread_diff_pct: float | None = Field(default=None, ge=0)
     min_net_edge_pct: float | None = None
+    taker_fee_bps: float | None = Field(default=None, ge=0)
+    slippage_bps: float | None = Field(default=None, ge=0)
+    withdraw_cost_usdt: float | None = Field(default=None, ge=0)
 
 
 def _filter_payload(
@@ -48,7 +51,7 @@ def create_app() -> FastAPI:
         else None
     )
 
-    app = FastAPI(title="Arbitrage Scanner MVP", version="0.1.0")
+    app = FastAPI(title="Arbitrage Scanner", version="0.1.0")
     app.state.settings = settings
     app.state.broker = broker
     app.state.scanner = initial_scanner
@@ -60,6 +63,9 @@ def create_app() -> FastAPI:
         "trade_notional_usdt": settings.trade_notional_usdt,
         "min_spread_diff_pct": settings.min_spread_diff_pct,
         "min_net_edge_pct": settings.min_net_edge_pct,
+        "taker_fee_bps": settings.taker_fee_bps,
+        "slippage_bps": settings.slippage_bps,
+        "withdraw_cost_usdt": settings.withdraw_cost_usdt,
         "active_exchanges": sorted(settings.exchanges),
         "active_symbols": sorted(settings.symbols),
         "available_exchanges": sorted(settings.exchanges),
@@ -214,6 +220,12 @@ def create_app() -> FastAPI:
                 current["min_spread_diff_pct"] = value
         if "min_net_edge_pct" in payload:
             current["min_net_edge_pct"] = float(payload["min_net_edge_pct"])
+        if "taker_fee_bps" in payload:
+            current["taker_fee_bps"] = float(payload["taker_fee_bps"])
+        if "slippage_bps" in payload:
+            current["slippage_bps"] = float(payload["slippage_bps"])
+        if "withdraw_cost_usdt" in payload:
+            current["withdraw_cost_usdt"] = float(payload["withdraw_cost_usdt"])
 
         app.state.runtime_settings = current
         return current

@@ -68,6 +68,9 @@ def detect_spatial_opportunities(
     trade_notional_usdt: float | None = None,
     min_spread_diff_pct: float | None = None,
     min_net_edge_pct: float | None = None,
+    taker_fee_bps: float | None = None,
+    slippage_bps: float | None = None,
+    withdraw_cost_usdt: float | None = None,
     now: float | None = None,
 ) -> list[Opportunity]:
     now_ts = now or time.time()
@@ -88,6 +91,17 @@ def detect_spatial_opportunities(
         min_net_edge_pct
         if min_net_edge_pct is not None
         else settings.min_net_edge_pct
+    )
+    taker_fee_bps_value = (
+        taker_fee_bps if taker_fee_bps is not None else settings.taker_fee_bps
+    )
+    slippage_bps_value = (
+        slippage_bps if slippage_bps is not None else settings.slippage_bps
+    )
+    withdraw_cost_value = (
+        withdraw_cost_usdt
+        if withdraw_cost_usdt is not None
+        else settings.withdraw_cost_usdt
     )
 
     for buy_exchange in exchanges:
@@ -140,11 +154,11 @@ def detect_spatial_opportunities(
             if gross_edge_pct < min_spread:
                 continue
 
-            taker_fee_rate = settings.taker_fee_bps / 10000.0
-            slippage_rate = settings.slippage_bps / 10000.0
+            taker_fee_rate = taker_fee_bps_value / 10000.0
+            slippage_rate = slippage_bps_value / 10000.0
             fees_cost = (buy_notional + sell_notional) * taker_fee_rate
             slippage_cost = buy_notional * slippage_rate
-            withdraw_cost = settings.withdraw_cost_usdt
+            withdraw_cost = withdraw_cost_value
 
             net_profit = gross_profit - fees_cost - slippage_cost - withdraw_cost
             net_edge_pct = (net_profit / buy_notional) * 100.0
